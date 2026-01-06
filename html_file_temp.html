@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unified WebSocket Chat</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+        }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+        .message-bubble {
+            max-width: 85%;
+            animation: fadeIn 0.25s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .glass {
+            background: rgba(255,255,255,.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255,255,255,.3);
+        }
+    </style>
+</head>
+
+<body class="h-screen flex items-center justify-center p-4">
+
+<div class="w-full max-w-2xl h-[90vh] flex flex-col glass rounded-2xl shadow-2xl overflow-hidden">
+    <!-- Header -->
+    <div class="px-6 py-4 border-b bg-white flex justify-between items-center">
+        <div>
+            <h2 class="text-xl font-semibold text-slate-800">AI Assistant</h2>
+            <div class="flex items-center gap-2">
+                <span id="status-dot" class="w-2 h-2 rounded-full bg-slate-300 transition-colors duration-300"></span>
+                <span id="status-text" class="text-xs text-slate-500">Disconnected</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chat Window -->
+    <div id="chat-window" class="flex-1 p-6 space-y-4 overflow-y-auto custom-scrollbar bg-slate-50/50">
+        <div class="message-bubble bg-white p-4 rounded-2xl border shadow-sm">
+            👋 Send a message or upload a file to begin.
+        </div>
+    </div>
+
+    <!-- Progress Bar -->
+    <div id="progress-container" class="hidden h-1 bg-slate-200">
+        <div id="progress-bar" class="h-full bg-blue-500 w-0 transition-all duration-150"></div>
+    </div>
+
+    <!-- Input Area -->
+    <div class="p-4 bg-white border-t">
+        <div id="file-preview" class="hidden mb-2 p-2 bg-blue-50 rounded-lg flex items-center justify-between">
+            <span id="file-name" class="text-xs font-medium text-blue-700 truncate max-w-[80%]"></span>
+            <button onclick="clearFile()" class="text-blue-500 hover:text-blue-700 text-lg">&times;</button>
+        </div>
+        
+        <div class="flex gap-2 items-end">
+            <label class="cursor-pointer p-3 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors">
+                <input type="file" id="fileInput" class="hidden" />
+                <span title="Attach file">📎</span>
+            </label>
+
+            <textarea
+                id="chatInput"
+                rows="1"
+                class="flex-1 bg-slate-50 border border-slate-200 rounded-xl p-3 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                placeholder="Ask a question..."
+                oninput="this.style.height='';this.style.height=this.scrollHeight+'px'"></textarea>
+
+            <button onclick="handleUnifiedSend()" id="sendBtn"
+                class="p-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-md transition-all active:scale-95">
+                ➤
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+/* ================= CONFIG ================= */
+const wsUrl = "ws://localhost:8000/api/chat/ws/chat-file"; 
+
+/* ================= STATE ================= */
+let socket = null;
+let selectedFile = null;
+
+/* ================= DOM ================= */
+const chatWindow = document.getElementById("chat-window");
+const chatInput = document.getElementById("chatInput");
+const fileInput = document.getElementById("fileInput");
+const filePreview = document.getElementById("file-preview");
+const fileNameSpan = document.getElementById("file-name");
+const progressContainer = document.getElementById("progress-container");
+const progressBar = document.getElementById("progress-bar");
+
+/* ================= UI HELPERS ================= */
+function updateStatus(connected) {
+    document.getElementById("status-dot").className =
+        `w-2 h-2 rounded-full ${connected ? "bg-green-500" : "bg-slate-300"}`;
+    document.getElementById("status-text").textContent =
+        connected ? "Connected" : "Disconnected";
+}
+
+function addMessage(content, isUser = false) {
+    const div = document.createElement("div");
+    div.className = `message-bubble p-4 rounded-2xl shadow-sm ${
+        isUser ? "bg-blue-600 text-white ml-auto" : "bg-white border text-slate-800"
+    }`;
+    
+    const text = typeof content === 'object' ? JSON.stringify(content, null, 2) : content;
+    div.innerHTML = `<pre class="whitespace-pre-wrap text-sm font-sans">${text}</pre>`;
+    
+    chatWindow.appendChild(div);
+    chatWindow.scrollTop = chatWindow.scrollHeight;
+}
+
+function clearFile() {
+    selectedFile = null;
+    fileInput.value = "";
+    filePreview.classList.add("hidden");
+}
+
+/* ================= WEBSOCKET ================= */
+function connect() {
+    return new Promise((resolve, reject) => {
+        if (socket && socket.readyState === WebSocket.OPEN) {
+            return resolve();
+        }
+
+        socket = new WebSocket(wsUrl);
+        socket.binaryType = "arraybuffer";
+
+        socket.onopen = () => {
+            updateStatus(true);
+            resolve();
+        };
+
+        socket.onclose = () => {
+            updateStatus(false);
+        };
+
+        socket.onerror = (err) => {
+            updateStatus(false);
+            reject(err);
+        };
+
+        socket.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                addMessage(data, false);
+            } catch {
+                addMessage(event.data, false);
+            }
+        };
+    });
+}
+
+/* ================= FILE HANDLING ================= */
+fileInput.addEventListener("change", () => {
+    selectedFile = fileInput.files[0];
+    if (!selectedFile) return;
+
+    fileNameSpan.textContent = `📎 ${selectedFile.name} (${(selectedFile.size / 1024).toFixed(1)} KB)`;
+    filePreview.classList.remove("hidden");
+});
+
+/* ================= SEND LOGIC ================= */
+async function handleUnifiedSend() {
+    const text = chatInput.value.trim();
+    
+    if (!text && !selectedFile) return;
+
+    try {
+        if (!socket || socket.readyState !== WebSocket.OPEN) {
+            await connect();
+        }
+    } catch (e) {
+        addMessage("Error: Could not connect to server.", false);
+        return;
+    }
+
+    // Prepare JSON Metadata strictly following your FastAPI BaseModel structure
+    const queryMessage = {
+        user_query: text || null,
+        file_meta: selectedFile ? {
+            filename: selectedFile.name,
+            content_type: selectedFile.type || "application/octet-stream",
+            size: selectedFile.size
+        } : null
+    };
+
+    if (text) addMessage(text, true);
+
+    // Send metadata first as JSON (required by backend)
+    socket.send(JSON.stringify(queryMessage));
+
+    if (selectedFile) {
+        addMessage(`Sending file: ${selectedFile.name}...`, true);
+        progressContainer.classList.remove("hidden");
+        progressBar.style.width = "30%";
+
+        try {
+            const fileBuffer = await selectedFile.arrayBuffer();
+            // Send binary data separately
+            socket.send(fileBuffer);
+            progressBar.style.width = "100%";
+        } catch (err) {
+            console.error("Transmission error:", err);
+            addMessage("Error processing file data.", false);
+        }
+
+        setTimeout(() => {
+            progressContainer.classList.add("hidden");
+            progressBar.style.width = "0%";
+        }, 500);
+    }
+
+    // Reset Inputs
+    chatInput.value = "";
+    chatInput.style.height = "auto";
+    clearFile();
+}
+</script>
+
+</body>
+</html>

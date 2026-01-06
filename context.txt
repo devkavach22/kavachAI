@@ -1,0 +1,14 @@
+{'type': 'websocket.disconnect', 'code': 1000, 'reason': ''}
+{'type': 'websocket.disconnect', 'code': 1001, 'reason': ''}
+{'type': 'websocket.disconnect', 'code': 1001, 'reason': ''}
+{'type': 'websocket.disconnect', 'code': 1001, 'reason': ''}
+{'type': 'websocket.receive', 'text': '{"type":"text","user_query":"testing the code"}'}
+{'type': 'websocket.receive', 'text': '{"type":"text","user_query":"new user"}'}
+{'type': 'websocket.disconnect', 'code': 1001, 'reason': ''}
+{'type': 'websocket.receive', 'text': '{"type":"text","user_query":"one more"}'}
+{'type': 'websocket.disconnect', 'code': 1000, 'reason': ''}
+{'type': 'websocket.disconnect', 'code': 1000, 'reason': ''}
+{'type': 'websocket.disconnect', 'code': 1001, 'reason': ''}
+{'type': 'websocket.receive', 'text': '{"type":"text","user_query":"testing the code"}'}
+{'type': 'websocket.receive', 'text': '{"type":"text","user_query":"vv"}'}
+{'type': 'websocket.disconnect', 'code': 1001, 'reason': ''}

@@ -1,0 +1,65 @@
+# Python virtual environment
+.venv/
+venv/
+env/
+
+# agent
+.agent/
+
+# Environment variables
+.env
+*.env
+
+# testing folder
+/tests/
+/test/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pydoc
+
+# VSCode settings
+.vscode/
+*.code-workspace
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# ChromaDB Local Storage
+chroma_db/
+
+# LangChain cache
+.lc_cache/
+*.lccache
+
+# Ruff, MyPy, PyTest cache
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# SQLite / temporary DB
+db/*.sqlite
+db/*.db
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+
+# Uploaded PDFs or files (if stored locally)
+uploads/
+temp/
+files/

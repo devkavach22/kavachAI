@@ -1,0 +1,21 @@
+# `.py
+# .js
+# .ts
+# .jsx
+# .tsx
+# .java
+# .c
+# .cpp
+# .h
+# .cs
+# .go
+# .rs
+# .php
+# .rb
+# .swift
+# .kt
+# .scala
+# .sh
+# .bat
+# .ps1`
+
