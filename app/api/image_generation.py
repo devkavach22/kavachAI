@@ -1,70 +1,54 @@
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
-import torch
-from diffusers import StableDiffusionPipeline
-import base64
-from io import BytesIO
-from PIL import Image
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, validator
+from services.image_generation_chain import generate_image_logic
 
 router = APIRouter()
-
-# Global variable to hold the pipeline
-_pipe = None
-
-
-def get_pipeline():
-    global _pipe
-    if _pipe is None:
-        try:
-            model_id = "runwayml/stable-diffusion-v1-5"
-            device = "cuda" if torch.cuda.is_available() else "cpu"
-
-            # Using float16 for GPU to save memory, float32 for CPU
-            dtype = torch.float16 if device == "cuda" else torch.float32
-
-            _pipe = StableDiffusionPipeline.from_pretrained(
-                model_id, torch_dtype=dtype, use_safetensors=True
-            )
-            _pipe.to(device)
-
-            # Optional: Add hooks for faster generation if needed
-            # _pipe.enable_attention_slicing()
-
-        except Exception as e:
-            raise RuntimeError(f"Failed to load local model: {str(e)}")
-    return _pipe
 
 
 class ImageGenerationRequest(BaseModel):
     prompt: str
 
+    @validator("prompt")
+    def prompt_must_not_be_empty(cls, v):
+        if not v.strip():
+            raise ValueError("prompt must not be empty")
+        return v.strip()
 
-@router.post("/generate")
+
+class ImageGenerationResponse(BaseModel):
+    success: bool
+    prompt: str
+    image_base64: str
+    device: str
+    generation_time: str
+
+
+@router.post("/generate", response_model=ImageGenerationResponse)
 async def generate_image(request: ImageGenerationRequest):
     """
     Generate an image based on a text prompt using LOCAL Stable Diffusion.
     """
     try:
-        pipe = get_pipeline()
+        result = generate_image_logic(request.prompt, is_sdxl=False)
+        return JSONResponse(
+            {"success": True, "prompt": request.prompt, **result},
+            status_code=200,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
-        # Run inference
-        # We use a small number of steps for faster generation if on CPU
-        # num_inference_steps=20-50 is a good range. Default is 50.
-        with torch.inference_mode():
-            result = pipe(request.prompt, num_inference_steps=30)
-            image = result.images[0]
 
-        # Convert PIL image to base64
-        buffered = BytesIO()
-        image.save(buffered, format="PNG")
-        image_base64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
-
-        return {
-            "success": True,
-            "prompt": request.prompt,
-            "image_base64": f"data:image/png;base64,{image_base64}",
-            "device": str(pipe.device),
-        }
-
+@router.post("/generate-sdxl", response_model=ImageGenerationResponse)
+async def generate_image_sdxl(request: ImageGenerationRequest):
+    """
+    Generate an image based on a text prompt using LOCAL Stable Diffusion XL.
+    """
+    try:
+        result = generate_image_logic(request.prompt, is_sdxl=True)
+        return JSONResponse(
+            {"success": True, "prompt": request.prompt, **result},
+            status_code=200,
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

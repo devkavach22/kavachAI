@@ -51,6 +51,19 @@ def get_openai_llm():
     return _openai_llm_instance
 
 
+def get_model():
+    """Return an LLM instance based on the ENVIRONMENT variable.
+
+    - production (or default): returns Ollama instance.
+    - development: returns OpenAI instance.
+    """
+    env = os.getenv("ENVIRONMENT", "production").lower()
+    if env == "development":
+        return get_openai_llm()
+    # Default to ollama for production or other environments
+    return get_llm()
+
+
 def main():
     """Run a simple test of the LLM singleton instance.
 
@@ -62,6 +75,12 @@ def main():
 
     openai_llm = get_openai_llm()
     print("OpenAI instance created:", openai_llm)
+
+    selected_llm = get_model()
+    print(
+        f"Selected LLM for ENVIRONMENT={os.getenv('ENVIRONMENT', 'not set')}:",
+        selected_llm,
+    )
 
     print("Invoking LLM...")
     start_time = time.time()

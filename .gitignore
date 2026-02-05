@@ -13,6 +13,7 @@ env/
 # testing folder
 /tests/
 /test/
+/tests_images/
 
 # Python cache
 __pycache__/
